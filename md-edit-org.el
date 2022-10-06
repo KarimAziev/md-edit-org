@@ -48,10 +48,10 @@
 ;;      This command should be used in `md-edit-org-edit-buffer'.
 
 ;; M-x `md-edit-org-done'
-;;      Replace content in `md-edit-org-orig-buffer' with converted `md-edit-org-edit-buffer'.
+;;      Replace content in markdown buffer with edited and exit.
 
 ;; M-x `md-edit-org-save'
-;;      Replace content in `md-edit-org-orig-buffer' with converted `md-edit-org-edit-buffer'.
+;;      Replace content in markdown buffer with edited in org and converted back.
 
 ;;; Customization
 
@@ -153,7 +153,7 @@ Should be called inside `md-edit-org-orig-buffer'."
 
 ;;;###autoload
 (defun md-edit-org-save ()
-  "Replace content in `md-edit-org-orig-buffer' with converted `md-edit-org-edit-buffer'."
+  "Replace content in markdown buffer with edited in org and converted back."
   (interactive)
   (let* ((current-buff (current-buffer))
          (org-content (with-current-buffer current-buff
@@ -173,7 +173,7 @@ Should be called inside `md-edit-org-orig-buffer'."
 
 ;;;###autoload
 (defun md-edit-org-done ()
-  "Replace content in `md-edit-org-orig-buffer' with converted `md-edit-org-edit-buffer'."
+  "Replace content in markdown buffer with edited and exit."
   (interactive)
   (let ((buff (current-buffer))
         (orig-buff))
