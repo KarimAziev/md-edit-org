@@ -49,7 +49,7 @@ Run in markdown buffer:
 
 When done, exit with =C-c C-c=.
 
-The edited text will then converted to markdown and replace the area in the original markdown buffer. To exit without changes - =C-c C-k= (command ~md-edit-org-discard~).
+The edited text will then converted to markdown and replace the area in the original markdown buffer. To exit without changes - =C-c C-k=.
 
 
 ** Customization

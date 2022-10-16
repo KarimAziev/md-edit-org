@@ -27,61 +27,11 @@
 
 ;; Edit markdown in org mode.
 
-;;; Keymaps
+;;; Usage
 
-;; `md-edit-org-edit-mode-map'
-;;      Keymap used in `md-edit-org-edit-buffer'.
+;; Run in markdown buffer:
 
-;;; Commands
-
-;; M-x `md-edit-org-edit-markdown-in-org'
-;;      Edit current markdown buffer in `org-mode'.
-;;      A new buffer is created with original content converted to org,
-;;      and the buffer is switched into an `org-mode'.
-;;      When done, exit with \<md-edit-org-edit-mode-map>`\[md-edit-org-done]'.
-;;      The edited text will then converted to markdown and replace the area
-;;      in the original markdown buffer.
-;;      To exit without changes - \<md-edit-org-edit-mode-map>\[md-edit-org-discard].
-
-;; M-x `md-edit-org-discard'
-;;      Kill `md-edit-org-edit-buffer'.
-;;      This command should be used in `md-edit-org-edit-buffer'.
-
-;; M-x `md-edit-org-done'
-;;      Replace content in markdown buffer with edited and exit.
-
-;; M-x `md-edit-org-save'
-;;      Replace content in markdown buffer with edited in org and converted back.
-
-;;; Customization
-
-;; `md-edit-org-persistent-message'
-;;      Non-nil means show persistent exit help message while editing src examples.
-;;      The message is shown in the header-line, which will be created in the
-;;      first line of the window showing the editing buffer.
-
-;; `md-edit-org-pandoc-executable'
-;;      The path to the pandoc executable.
-
-;; `md-edit-org-pandoc-output-type'
-;;      Markdown output type for `pandoc'.
-
-;;; Functions
-
-;; `md-edit-org-kill-org-buffer'
-;;      Kill buffer `md-edit-org-edit-buffer' if it is live.
-;;      Should be called inside `md-edit-org-orig-buffer'.
-
-;; `md-edit-org-pandoc-from-string' (string input-type output-type &rest options)
-;;      Execute `pandoc' on STRING in INPUT-TYPE to OUTPUT-TYPE additional OPTIONS.
-
-;;; Variables
-
-;; `md-edit-org-edit-buffer'
-;;      Editable buffer for `md-edit-org-orig-buffer' in `org-mode'.
-
-;; `md-edit-org-orig-buffer'
-;;      Markdown buffer.
+;; M-x `md-edit-org'
 
 ;;; Code:
 
