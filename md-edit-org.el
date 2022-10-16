@@ -86,6 +86,7 @@
 ;;; Code:
 
 (require 'subr-x)
+(require 'edit-indirect)
 
 (defcustom md-edit-org-pandoc-output-type "gfm"
   "Markdown output type for `pandoc'."
@@ -102,28 +103,6 @@
   "The path to the pandoc executable."
   :type 'string
   :group 'org-md)
-
-(defcustom md-edit-org-persistent-message t
-  "Non-nil means show persistent exit help message while editing src examples.
-The message is shown in the header-line, which will be created in the
-first line of the window showing the editing buffer."
-  :group 'org-md
-  :type 'boolean)
-
-(defvar-local md-edit-org-orig-buffer nil
-  "Markdown buffer.")
-
-(defvar-local md-edit-org-edit-buffer nil
-  "Editable buffer for `md-edit-org-orig-buffer' in `org-mode'.")
-
-(defvar md-edit-org-edit-mode-map
-  (let ((map (make-sparse-keymap)))
-    (define-key map (kbd "C-c C-c") #'md-edit-org-done)
-    (define-key map (kbd "C-c '") #'md-edit-org-done)
-    (define-key map (kbd "C-c C-k") #'md-edit-org-discard)
-    (define-key map [remap save-buffer] #'md-edit-org-save)
-    map)
-  "Keymap used in `md-edit-org-edit-buffer'.")
 
 (defun md-edit-org-pandoc-from-string (string input-type output-type &rest options)
   "Execute `pandoc' on STRING in INPUT-TYPE to OUTPUT-TYPE additional OPTIONS."
@@ -142,109 +121,105 @@ first line of the window showing the editing buffer."
                             (buffer-string))
         nil))))
 
-(defun md-edit-org-kill-org-buffer ()
-  "Kill buffer `md-edit-org-edit-buffer' if it is live.
-Should be called inside `md-edit-org-orig-buffer'."
-  (when (and md-edit-org-edit-buffer
-             (bufferp md-edit-org-edit-buffer)
-             (buffer-live-p md-edit-org-edit-buffer))
-    (kill-buffer md-edit-org-edit-buffer))
-  (setq md-edit-org-edit-buffer nil))
+(defun md-edit-org-git-commit-setup ()
+  "Add `md-edit-org-git-commit' to `git-commit-mode-hook'."
+  (add-hook 'git-commit-mode-hook 'md-edit-org-git-commit))
+
+(defun md-edit-org-cleanup (&optional _beg _end)
+  "Remove hooks from parent buffer."
+  (remove-hook 'edit-indirect-after-creation-hook
+               'md-edit-org-after-creation t)
+  (remove-hook 'edit-indirect-before-commit-functions
+               'md-edit-org-cleanup t))
+
+(defun md-edit-org-indirect-org-to-md ()
+  "Transofrm org content of current buffer to markdown."
+  (let* ((content (buffer-substring-no-properties (point-min)
+                                                  (point-max)))
+         (rep (md-edit-org-pandoc-from-string content
+                                              "org"
+                                              md-edit-org-pandoc-output-type)))
+    (replace-region-contents (point-min)
+                             (point-max)
+                             (lambda ()
+                               rep))
+    (md-edit-org-fix-md-links)))
+
+(defun md-edit-org-fix-md-links ()
+  "Transorm inline links with images in org buffer to markdown."
+  (save-excursion
+    (goto-char (point-min))
+    (save-excursion
+      (while (re-search-forward "\\\\[!]\\(\\\\\\)?" nil t 1)
+        (replace-match "!")))
+    (save-excursion
+      (while (re-search-forward "[<]\\(https?:[^>]+\\)[>]" nil t 1)
+        (let ((beg (match-beginning 0))
+              (end (match-end 0))
+              (rep))
+          (setq rep (buffer-substring-no-properties (1+ beg)
+                                                    (1- end)))
+          (replace-region-contents beg end (lambda ()rep)))))
+    (save-excursion
+      (while (re-search-forward "\\(>\\)?\\\\]" nil t 1)
+        (replace-match "]")))
+    (save-excursion
+      (while (re-search-forward "\\\\\\[" nil t 1)
+        (replace-match "[" nil nil nil 0)))
+    (save-excursion
+      (while
+          (re-search-forward
+           "\\[\\!\\[\\[\\(https?://[^]]+\\)\\]\\[\\([^]]+\\)\\]+"
+           nil t 1)
+        (let ((link (match-string-no-properties 1))
+              (text (match-string-no-properties 2)))
+          (replace-match (format "[![%s](%s)]" text link)))))))
+
+(defun md-edit-org-after-creation ()
+  "Convert md content to org and add hook to transform it back before commit."
+  (require 'org)
+  (let* ((content (buffer-substring-no-properties (point-min)
+                                                  (point-max)))
+         (rep (md-edit-org-pandoc-from-string
+               (replace-regexp-in-string
+                "\\(!\\)\\[" "\\\\!["
+                content)
+               md-edit-org-pandoc-output-type
+               "org")))
+    (replace-region-contents (point-min)
+                             (point-max)
+                             (lambda () rep))
+    (org-mode)
+    (add-hook 'edit-indirect-before-commit-hook
+              'md-edit-org-indirect-org-to-md
+              nil t)))
+
+(defun md-edit-org-mark-region (start end)
+  "Mark region between START and END."
+  (goto-char start)
+  (push-mark start nil t)
+  (goto-char end))
 
 ;;;###autoload
-(defun md-edit-org-save ()
-  "Replace content in markdown buffer with edited in org and converted back."
-  (interactive)
-  (let* ((current-buff (current-buffer))
-         (org-content (with-current-buffer current-buff
-                        (buffer-substring-no-properties (point-min)
-                                                        (point-max))))
-         (buff (buffer-local-value 'md-edit-org-orig-buffer current-buff))
-         (converted-content (md-edit-org-pandoc-from-string
-                             org-content
-                             "org"
-                             md-edit-org-pandoc-output-type)))
-    (when converted-content
-      (with-current-buffer buff
-        (replace-region-contents (point-min)
-                                 (point-max)
-                                 (lambda ()
-                                   converted-content))))))
-
-;;;###autoload
-(defun md-edit-org-done ()
-  "Replace content in markdown buffer with edited and exit."
-  (interactive)
-  (let ((buff (current-buffer))
-        (orig-buff))
-    (setq orig-buff (buffer-local-value 'md-edit-org-orig-buffer buff))
-    (md-edit-org-save)
-    (kill-buffer buff)
-    (when orig-buff
-      (pop-to-buffer-same-window orig-buff))))
-
-;;;###autoload
-(defun md-edit-org-discard ()
-  "Kill `md-edit-org-edit-buffer'.
-This command should be used in `md-edit-org-edit-buffer'."
-  (interactive)
-  (set-buffer-modified-p nil)
-  (kill-current-buffer))
-
-;;;###autoload
-(defun md-edit-org-edit-markdown-in-org ()
+(defun md-edit-org ()
   "Edit current markdown buffer in `org-mode'.
 
 A new buffer is created with original content converted to org,
-and the buffer is switched into an `org-mode'.
-
-When done, exit with \\<md-edit-org-edit-mode-map>`\\[md-edit-org-done]'.
-The edited text will then converted to markdown and replace the area
-in the original markdown buffer.
-
-To exit without changes - \\<md-edit-org-edit-mode-map>\\[md-edit-org-discard]."
+and the buffer is switched into an `org-mode'."
   (interactive)
-  (let* ((md-buffer (current-buffer))
-         (org-buffer-name (concat
-                           "md-edit-org-edit-"
-                           (buffer-name
-                            md-buffer))))
-    (with-current-buffer md-buffer
-      (add-hook 'kill-buffer-hook 'md-edit-org-kill-org-buffer nil t)
-      (setq md-edit-org-edit-buffer (get-buffer-create org-buffer-name))
-      (setq md-edit-org-orig-buffer md-buffer)
-      (let* ((md-content (buffer-substring-no-properties (point-min)
-                                                         (point-max)))
-             (pos (point))
-             (org-content
-              (if
-                  (string-empty-p (string-trim md-content))
-                  md-content
-                (md-edit-org-pandoc-from-string md-content
-                                           md-edit-org-pandoc-output-type
-                                           "org"))))
-        (with-current-buffer md-edit-org-edit-buffer
-          (erase-buffer)
-          (insert org-content)
-          (org-mode)
-          (use-local-map
-           (let ((map (copy-keymap
-                       md-edit-org-edit-mode-map)))
-             (set-keymap-parent map (current-local-map))
-             map))
-          (setq buffer-read-only nil)
-          (set-buffer-modified-p nil)
-          (setq buffer-undo-list nil)
-          (when md-edit-org-persistent-message
-            (setq header-line-format
-	                (substitute-command-keys
-	                 "Edit, then exit with `\\[md-edit-org-done]' or abort with \
-`\\[md-edit-org-discard]'")))
-          (setq header-line-format (or (format "Editing %s" md-buffer)))
-          (setq md-edit-org-orig-buffer md-buffer)
-          (when (> (point-max) pos)
-            (goto-char pos)))
-        (pop-to-buffer-same-window md-edit-org-edit-buffer t)))))
+  (add-hook 'edit-indirect-before-commit-functions 'md-edit-org-cleanup nil t)
+  (add-hook 'edit-indirect-after-creation-hook 'md-edit-org-after-creation nil t)
+  (if
+      (and (use-region-p)
+           (region-active-p))
+      (edit-indirect-region
+       (region-beginning)
+       (region-end)
+       'display-buffer)
+    (edit-indirect-region
+     (point-min)
+     (point-max)
+     'display-buffer)))
 
 (provide 'md-edit-org)
 ;;; md-edit-org.el ends here
