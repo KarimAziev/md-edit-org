@@ -6,7 +6,7 @@
 ;; URL: https://github.com/KarimAziev/md-edit-org
 ;; Version: 0.1.0
 ;; Keywords: outlines convenience docs
-;; Package-Requires: ((emacs "27.1"))
+;; Package-Requires: ((emacs "27.1") (edit-indirect "0.1.10"))
 
 ;; This file is NOT part of GNU Emacs.
 
@@ -71,16 +71,12 @@
                             (buffer-string))
         nil))))
 
-(defun md-edit-org-git-commit-setup ()
-  "Add `md-edit-org-git-commit' to `git-commit-mode-hook'."
-  (add-hook 'git-commit-mode-hook 'md-edit-org-git-commit))
-
 (defun md-edit-org-cleanup (&optional _beg _end)
   "Remove hooks from parent buffer."
   (remove-hook 'edit-indirect-after-creation-hook
-               'md-edit-org-after-creation t)
+               #'md-edit-org-after-creation t)
   (remove-hook 'edit-indirect-before-commit-functions
-               'md-edit-org-cleanup t))
+               #'md-edit-org-cleanup t))
 
 (defun md-edit-org-indirect-org-to-md ()
   "Transofrm org content of current buffer to markdown."
@@ -144,12 +140,6 @@
               'md-edit-org-indirect-org-to-md
               nil t)))
 
-(defun md-edit-org-mark-region (start end)
-  "Mark region between START and END."
-  (goto-char start)
-  (push-mark start nil t)
-  (goto-char end))
-
 ;;;###autoload
 (defun md-edit-org ()
   "Edit current markdown buffer in `org-mode'.
@@ -157,8 +147,9 @@
 A new buffer is created with original content converted to org,
 and the buffer is switched into an `org-mode'."
   (interactive)
-  (add-hook 'edit-indirect-before-commit-functions 'md-edit-org-cleanup nil t)
-  (add-hook 'edit-indirect-after-creation-hook 'md-edit-org-after-creation nil t)
+  (add-hook 'edit-indirect-before-commit-functions #'md-edit-org-cleanup nil t)
+  (add-hook 'edit-indirect-after-creation-hook #'md-edit-org-after-creation nil
+            t)
   (if
       (and (use-region-p)
            (region-active-p))
