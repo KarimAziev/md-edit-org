@@ -137,7 +137,7 @@
                              (lambda () rep))
     (org-mode)
     (add-hook 'edit-indirect-before-commit-hook
-              'md-edit-org-indirect-org-to-md
+              #'md-edit-org-indirect-org-to-md
               nil t)))
 
 ;;;###autoload
