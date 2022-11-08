@@ -6,7 +6,7 @@
 ;; URL: https://github.com/KarimAziev/md-edit-org
 ;; Version: 0.1.0
 ;; Keywords: outlines convenience docs
-;; Package-Requires: ((emacs "27.1") (edit-indirect "0.1.10"))
+;; Package-Requires: ((emacs "27.1") (edit-indirect "0.1.10") (impatient-mode "1.1"))
 
 ;; This file is NOT part of GNU Emacs.
 
@@ -25,7 +25,7 @@
 
 ;;; Commentary:
 
-;; Edit markdown in org mode.
+;; Edit and preview markdown in org mode.
 
 ;;; Usage
 
@@ -47,14 +47,22 @@
                  (string :tag "PHP Markdown Extra" "markdown_phpextra")
                  (string :tag "original unextended Markdown" "markdown_strict")
                  (string :tag "Other"))
-  :group 'org-md)
+  :group 'md-edit)
 
 (defcustom md-edit-org-pandoc-executable (executable-find "pandoc")
   "The path to the pandoc executable."
   :type 'string
-  :group 'org-md)
+  :group 'md-edit)
 
-(defun md-edit-org-pandoc-from-string (string input-type output-type &rest options)
+(defvar md-edit-org-after-creation-hook nil
+  "Functions called after the edit-indirect buffer is created.
+The functions are called with the edit-indirect buffer as the
+current buffer.
+
+Note that the buffer-local value from the parent buffer is used.")
+
+(defun md-edit-org-pandoc-from-string (string input-type output-type &rest
+                                              options)
   "Execute `pandoc' on STRING in INPUT-TYPE to OUTPUT-TYPE additional OPTIONS."
   (setq options (delete nil (flatten-list options)))
   (let ((args (append
@@ -76,7 +84,12 @@
   (remove-hook 'edit-indirect-after-creation-hook
                #'md-edit-org-after-creation t)
   (remove-hook 'edit-indirect-before-commit-functions
-               #'md-edit-org-cleanup t))
+               #'md-edit-org-cleanup t)
+  (run-with-timer 1 nil (lambda (buff)
+                          (when (buffer-live-p buff)
+                            (with-current-buffer buff
+                              (run-hooks 'md-edit-org-after-creation-hook))))
+                  (current-buffer)))
 
 (defun md-edit-org-indirect-org-to-md ()
   "Transofrm org content of current buffer to markdown."
@@ -140,6 +153,15 @@
               #'md-edit-org-indirect-org-to-md
               nil t)))
 
+(defun md-edit-org-edit-indirect-after-commit (beg end)
+  "Replace indirect buffer content with markdown content between BEG and END."
+  (when-let ((ov-buffer (edit-indirect--get-edit-indirect-buffer beg end))
+             (content (buffer-substring-no-properties beg end)))
+    (when (buffer-live-p ov-buffer)
+      (with-current-buffer ov-buffer
+        (replace-region-contents (point-min) (point-max) (lambda () content))
+        (md-edit-org-after-creation)))))
+
 ;;;###autoload
 (defun md-edit-org ()
   "Edit current markdown buffer in `org-mode'.
@@ -147,20 +169,29 @@
 A new buffer is created with original content converted to org,
 and the buffer is switched into an `org-mode'."
   (interactive)
-  (add-hook 'edit-indirect-before-commit-functions #'md-edit-org-cleanup nil t)
-  (add-hook 'edit-indirect-after-creation-hook #'md-edit-org-after-creation nil
-            t)
-  (if
-      (and (use-region-p)
-           (region-active-p))
+  (when (or (not buffer-read-only)
+            (when (yes-or-no-p "Buffer is readonly. Unset readonly?")
+              (read-only-mode -1)
+              t))
+    (add-hook 'edit-indirect-after-commit-functions
+              #'md-edit-org-edit-indirect-after-commit nil t)
+    (add-hook 'edit-indirect-before-commit-functions
+              #'md-edit-org-cleanup nil t)
+    (add-hook 'edit-indirect-after-creation-hook
+              #'md-edit-org-after-creation
+              nil
+              t)
+    (if
+        (and (use-region-p)
+             (region-active-p))
+        (edit-indirect-region
+         (region-beginning)
+         (region-end)
+         'display-buffer)
       (edit-indirect-region
-       (region-beginning)
-       (region-end)
-       'display-buffer)
-    (edit-indirect-region
-     (point-min)
-     (point-max)
-     'display-buffer)))
+       (point-min)
+       (point-max)
+       'display-buffer))))
 
 (provide 'md-edit-org)
 ;;; md-edit-org.el ends here
