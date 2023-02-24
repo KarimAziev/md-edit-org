@@ -169,10 +169,8 @@ Note that the buffer-local value from the parent buffer is used.")
 A new buffer is created with original content converted to org,
 and the buffer is switched into an `org-mode'."
   (interactive)
-  (when (or (not buffer-read-only)
-            (when (yes-or-no-p "Buffer is readonly. Unset readonly?")
-              (read-only-mode -1)
-              t))
+  (barf-if-buffer-read-only)
+  (when (not buffer-read-only)
     (add-hook 'edit-indirect-after-commit-functions
               #'md-edit-org-edit-indirect-after-commit nil t)
     (add-hook 'edit-indirect-before-commit-functions
