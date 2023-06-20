@@ -31,14 +31,12 @@ Download the source code and put it wherever you like and add the directory to t
 *** With use-package and straight
 
 #+begin_src elisp :eval no
-
 (use-package md-edit-org
-	:straight (md-edit-org
-			       :repo "KarimAziev/md-edit-org"
-			       :type git
-			       :host github)
-	:commands (md-edit-org))
-
+  :straight (md-edit-org
+             :repo "KarimAziev/md-edit-org"
+             :type git
+             :host github)
+  :commands (md-edit-org))
 #+end_src
 
 ** Usage
