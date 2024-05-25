@@ -118,7 +118,7 @@ Note that the buffer-local value from the parent buffer is used.")
               (rep))
           (setq rep (buffer-substring-no-properties (1+ beg)
                                                     (1- end)))
-          (replace-region-contents beg end (lambda ()rep)))))
+          (replace-region-contents beg end (lambda () rep)))))
     (save-excursion
       (while (re-search-forward "\\(>\\)?\\\\]" nil t 1)
         (replace-match "]")))
@@ -128,7 +128,7 @@ Note that the buffer-local value from the parent buffer is used.")
     (save-excursion
       (while
           (re-search-forward
-           "\\[\\!\\[\\[\\(https?://[^]]+\\)\\]\\[\\([^]]+\\)\\]+"
+           "\\[!\\[\\[\\(https?://[^]]+\\)\\]\\[\\([^]]+\\)\\]+"
            nil t 1)
         (let ((link (match-string-no-properties 1))
               (text (match-string-no-properties 2)))
