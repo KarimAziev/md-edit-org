@@ -155,7 +155,7 @@ Note that the buffer-local value from the parent buffer is used.")
 
 (defun md-edit-org-edit-indirect-after-commit (beg end)
   "Replace indirect buffer content with markdown content between BEG and END."
-  (when-let ((ov-buffer (edit-indirect--get-edit-indirect-buffer beg end))
+  (when-let* ((ov-buffer (edit-indirect--get-edit-indirect-buffer beg end))
              (content (buffer-substring-no-properties beg end)))
     (when (buffer-live-p ov-buffer)
       (with-current-buffer ov-buffer
